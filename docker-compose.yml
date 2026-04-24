@@ -1,0 +1,67 @@
+services:
+
+  # ─── PostgreSQL ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-szabiapp}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-szabiapp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── .NET Backend ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./SzabiApp.Backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Database – uses internal Docker network hostname "db"
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Port=5432;
+        Database=${POSTGRES_DB:-szabiapp};
+        Username=${POSTGRES_USER:-postgres};
+        Password=${POSTGRES_PASSWORD:-postgres}
+      # CORS – allow the browser origin where the frontend is served
+      CorsSettings__AllowedOrigins__0: "http://localhost:${FRONTEND_PORT:-80}"
+      CorsSettings__AllowedOrigins__1: "http://localhost"
+      # JWT
+      JwtSettings__SecretKey: "${JWT_SECRET:-CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS}"
+      JwtSettings__Issuer: "SzabiApp"
+      JwtSettings__Audience: "SzabiApp"
+      JwtSettings__ExpiryMinutes: "60"
+    ports:
+      - "${BACKEND_PORT:-5062}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─── Vue Frontend (Nginx) ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./SzabiApp.Frontend
+      dockerfile: Dockerfile
+      args:
+        # VITE_API_BASE_URL is embedded at build time — must be the URL
+        # the BROWSER uses to reach the backend (host machine's port).
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:5062}"
+        VITE_APP_NAME: "SzabiApp"
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^\\\\.\\\\.$\")",
+      "Bash(grep -v \"^\\\\.$\")",
+      "Read(//mnt/c/Dev/DUE/**)",
+      "Read(//mnt/c/Dev/**)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet build:*)"
+    ]
+  }
+}

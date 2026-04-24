@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:/Dev/DUE/InfoProjekt/SzabiApp/SzabiApp.Backend -type f -name *.csproj -o -name appsettings.json -o -name launchSettings.json)",
+      "Read(//mnt/c/Dev/DUE/InfoProjekt/SzabiApp/**)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx vite:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(xargs grep:*)",
+      "WebFetch(domain:www.openholidaysapi.org)"
+    ]
+  }
+}

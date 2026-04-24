@@ -1,0 +1,7 @@
+﻿services:
+  szabiapp.backend:
+    image: szabiapp.backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+
