@@ -10,6 +10,7 @@ using Scalar.AspNetCore;
 using SzabiApp.Backend.Data.Context;
 using SzabiApp.Backend.Models.Entities;
 using FluentValidation;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using SzabiApp.Backend.Common;
 using SzabiApp.Backend.Data.Seeding;
@@ -115,6 +116,21 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
+// --- Forwarded headers (reverse proxy support: NPM, Traefik, Cloudflare, etc.) ---
+// Required so Request.Scheme reflects the original https:// even when the proxy
+// terminates TLS and forwards plain HTTP to the container.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    // Inside a docker network we can't enumerate the proxy IPs reliably,
+    // so trust any forwarder. Lock this down per-deployment if needed.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // --- Health checks ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 builder.Services.AddHealthChecks()
@@ -148,11 +164,21 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+// Must run before anything that reads scheme/host (CORS, auth, redirects).
+app.UseForwardedHeaders();
+
 app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment())
     app.UseRateLimiter();
-app.UseHttpsRedirection();
+
+// Skip HTTPS redirection when running behind a reverse proxy that terminates
+// TLS — the container itself only listens on HTTP, so an in-app redirect
+// would either no-op with a warning or cause a redirect loop.
+var behindProxy = builder.Configuration.GetValue<bool>("BehindReverseProxy");
+if (!behindProxy)
+    app.UseHttpsRedirection();
+
 app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

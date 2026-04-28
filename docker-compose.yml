@@ -33,14 +33,34 @@ services:
         Database=${POSTGRES_DB:-szabiapp};
         Username=${POSTGRES_USER:-postgres};
         Password=${POSTGRES_PASSWORD:-postgres}
-      # CORS – allow the browser origin where the frontend is served
-      CorsSettings__AllowedOrigins__0: "http://localhost:${FRONTEND_PORT:-80}"
-      CorsSettings__AllowedOrigins__1: "http://localhost"
+      # CORS – allow the browser origins where the frontend is served.
+      # FRONTEND_ORIGIN is the public URL (e.g. https://szabiapp.example.com)
+      # used when the app is behind a reverse proxy. The localhost entries
+      # keep `docker compose up` usable on a dev machine without TLS.
+      CorsSettings__AllowedOrigins__0: "${FRONTEND_ORIGIN:-http://localhost:${FRONTEND_PORT:-80}}"
+      CorsSettings__AllowedOrigins__1: "http://localhost:${FRONTEND_PORT:-80}"
+      CorsSettings__AllowedOrigins__2: "http://localhost"
+      # Trust X-Forwarded-* headers from the reverse proxy so HTTPS scheme
+      # and the original client IP are preserved.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      # When true the in-app HTTPS redirect is skipped (the proxy already
+      # terminates TLS, the container itself only speaks HTTP on :8080).
+      BehindReverseProxy: "${BEHIND_REVERSE_PROXY:-false}"
       # JWT
       JwtSettings__SecretKey: "${JWT_SECRET:-CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS}"
       JwtSettings__Issuer: "SzabiApp"
       JwtSettings__Audience: "SzabiApp"
       JwtSettings__ExpiryMinutes: "60"
+      # ── Demo / presentation mode ────────────────────────────────────────
+      # When DEMO_MODE=true, the backend seeds ~40 mock users + leave
+      # requests on first start (only if the users table is empty, so it's
+      # safe to leave on across restarts). Toggle via .env or:
+      #   DEMO_MODE=true docker compose up --build
+      DemoMode__Enabled: "${DEMO_MODE:-false}"
+      DemoMode__ApplyMigrations: "${DEMO_APPLY_MIGRATIONS:-true}"
+      DemoMode__DefaultPassword: "${DEMO_DEFAULT_PASSWORD:-Demo123!}"
+      DemoMode__EmployeeCount: "${DEMO_EMPLOYEE_COUNT:-35}"
+      DemoMode__ManagerCount: "${DEMO_MANAGER_COUNT:-4}"
     ports:
       - "${BACKEND_PORT:-5062}:8080"
     depends_on:
