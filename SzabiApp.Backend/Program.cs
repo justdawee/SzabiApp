@@ -12,6 +12,7 @@ using SzabiApp.Backend.Models.Entities;
 using FluentValidation;
 using Microsoft.AspNetCore.RateLimiting;
 using SzabiApp.Backend.Common;
+using SzabiApp.Backend.Data.Seeding;
 using SzabiApp.Backend.Mappings;
 using SzabiApp.Backend.Services;
 using SzabiApp.Backend.Services.Interfaces;
@@ -67,6 +68,13 @@ builder.Services.AddSingleton<IClock>(SystemClock.Instance);
 
 // --- Mapper ---
 builder.Services.AddScoped<AppMapper>();
+
+// --- Demo seeder (presentation mode) ---
+var demoOptions = builder.Configuration
+    .GetSection(DemoSeederOptions.SectionName)
+    .Get<DemoSeederOptions>() ?? new DemoSeederOptions();
+builder.Services.AddSingleton(demoOptions);
+builder.Services.AddScoped<DemoDataSeeder>();
 
 // --- Validation ---
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
@@ -126,6 +134,13 @@ builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+if (demoOptions.Enabled)
+{
+    using var scope = app.Services.CreateScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<DemoDataSeeder>();
+    await seeder.SeedAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

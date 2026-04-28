@@ -9,6 +9,30 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d szabiapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=szabiapp;Username=postgres;Password=postgres"
+      # --- Presentation / demo mode toggle ---
+      # Flip to "true" to populate the database with ~40 mock users + leave requests on first start.
+      # Seeding only runs when the users table is empty, so it's safe to leave on across restarts.
+      DemoMode__Enabled: "${DEMO_MODE:-false}"
+      DemoMode__ApplyMigrations: "true"
+    ports:
+      - "8080:8080"
 
 volumes:
   postgres_data:
