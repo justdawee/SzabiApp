@@ -127,7 +127,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedHost;
     // Inside a docker network we can't enumerate the proxy IPs reliably,
     // so trust any forwarder. Lock this down per-deployment if needed.
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
